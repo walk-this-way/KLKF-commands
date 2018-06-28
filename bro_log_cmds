@@ -1,0 +1,73 @@
+/opt/bro/share/bro/intel/intel.dat <---update this file.  intel.log file created in /nsm/bro/log/ dir.
+/nsm/bro/logs/
+/etc/nsm/rules/local.rules
+/etc/nsm/so-eth1/snort.conf
+
+#Connections
+zcat conn.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p proto 
+
+#DNS
+zcat dns.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p proto query
+
+#Files
+zcat files.1* | bro-cut ts -d tx_hosts rx_hosts source mime_type filename 
+
+#Known host 
+zcat known_* | bro-cut host | uniq | sort | uniq
+
+#DNS - Find only TCP connections
+zcat dns.* | bro-cut id.orig_h id.orig_p id.resp_h id.resp_p proto query answers | grep "\stcp"
+
+#Kerberos - Find user logins
+zcat kerberos.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p client
+
+#Search through all pcaps in directory
+for i in * ; do tcpdump -nn -r $i host 0.0.0.0 ; done
+
+#Find all SMB shares
+zcat smb_mapping.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p path
+
+#SMB files
+cat smb_files.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p action  name path
+
+#Files
+cat files.* | bro-cut ts -d tx_hosts rx_hosts source mime_type filename 
+
+#SMTP -mail
+zcat smtp.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p rcptto  mailfrom
+
+#Filter out uniq certs
+ zcat x509.* | bro-cut certificate.subject certificate.issuer | sort | uniq > /home/me1/testcert1
+ 
+#Find self signed certs 
+cat testcert1 | awk -F '\t' '$1 == $2 {print}'
+-	Once found grep for the cert in bro logs
+-	 zcat ssl.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p subject issuer
+
+#Find self signed cert 
+zcat ssl.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p subject issuer validation_status | grep "self\ssigned" | grep -v chain
+
+#SSH
+ zcat ssh.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p direction client server
+
+#RDP
+zcat rdp.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p cookie security_protocol
+
+#NTLM - login information 
+ zcat ntlm.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p username hostname domainname success status
+
+#HTTP
+ zcat http_eth0.* | bro-cut ts -d id.orig_h id.orig_p id.resp_h id.resp_p method host uri referrer
+
+#FTP
+zcat ftp.*  | bro-cut ts -d  id.orig_h id.orig_p id.resp_h id.resp_p password arg mime_type
+
+#Bro File Extraction
+sudo /opt/bro/bin/bro -r <pcap path> /opt/bro/share/bro/file-extraction/extract.bro
+(Sends files to /nsm/bro/extracted)
+
+
+Zcat http.eth1.name | head
+
+#list http URLs (method=GET) 
+For i in 2018* ; do zcat $i/http_eth1.* | bro-cut id.orig_h id.resp_h method host | awk ‘ {if ( $2 !~ “134.135” && $3 == “GET” ) print $0 } ‘ >> /tmp/host.txt; done
